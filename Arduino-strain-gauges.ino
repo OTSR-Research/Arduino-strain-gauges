@@ -1,15 +1,13 @@
 #include <SPI.h>
 #include <SD.h>
 
-#define numGauges 2  // Number of gauges should be <= number of ADCs * 2
-
 // Chip select (CS) pins
 #define SDpin 9
 #define minADC A0
-#define maxADC A0
+#define maxADC A1
 
 // Create data array
-const size_t dataLen = numGauges + 1;  // Length = number of gauges + 1 for time stamp
+const size_t dataLen = (1 + maxADC - minADC) + 1;  // Length = number of ADCs, + 1 for time stamp
 long* gaugeData = (long*) calloc(dataLen, sizeof(long));
 
 void setup() {
@@ -30,35 +28,35 @@ void setup() {
     digitalWrite(SDpin, HIGH);
     SPI.beginTransaction(SPISettings(1000000, MSBFIRST, SPI_MODE1));
 
-    // // Reset ADCs
-    // for (int i = minADC; i <= maxADC; i++) {
-    //     digitalWrite(i, LOW);
-    //     SPI.transfer(0x06);  // Instruction to reset ADC
-    //     digitalWrite(i, HIGH);
-    // }
-    // delay(250);
-
     // Set ADC configuration registers
     for (int i = minADC; i <= maxADC; i++) {
-        digitalWrite(i, LOW);
-        SPI.transfer(0x43);  // Instruction to write 4 bytes starting at register 0
-        SPI.transfer(0x0E);  // Settings for register 0
-        SPI.transfer(0xC4);  // Settings for register 1
-        SPI.transfer(0xC0);  // Settings for register 2
-        SPI.transfer(0x00);  // Settings for register 3
-        digitalWrite(i, HIGH);
-        // Serial.println(readConfig(i), HEX);
+        writeRegister(i, 0, 0x0E);
+        writeRegister(i, 1, 0xC4);
+        writeRegister(i, 2, 0xC0);
+        writeRegister(i, 3, 0x00);
     }
 
-    // // Start conversions
-    // for (int i = minADC; i <= maxADC; i++) {
-    //     digitalWrite(i, LOW);
-    //     SPI.transfer(0x08);  // Instruction to start conversions
-    //     digitalWrite(i, HIGH);
-    // }
+    // Start conversions
+    for (int i = minADC; i <= maxADC; i++) {
+        startConversions(i);
+    }
 }
 
 void loop() {
+    // Take gauge readings
+    gaugeData[0] = millis();
+    for (int i = minADC; i <= maxADC; i++) {
+        gaugeData[i - minADC + 1] = convertOutput(readData(i));
+    }
+    // Write data to SD card
+    // writeToSD(gaugeData, dataLen, "data.csv");
+    // Print data for testing
+    for (int i = 0; i <= dataLen - 1; i++) {
+        Serial.print(gaugeData[i]);
+        if (i < dataLen - 1) Serial.print(", ");
+    }
+    Serial.println();
+    delay(1000);
 }
 
 // Write integer data to SD card
@@ -68,7 +66,7 @@ void writeToSD(long* data, size_t len, String filename) {
     if (dataFile != NULL) {
         for (int i = 0; i <= len - 1; i++) {
             dataFile.print(data[i]);
-            if (i < len - 1) dataFile.print(", ");
+            if (i < len - 1) dataFile.print(",");
         }
         dataFile.println();
         dataFile.close();
@@ -76,6 +74,7 @@ void writeToSD(long* data, size_t len, String filename) {
     digitalWrite(SDpin, HIGH);
 }
 
+// TODO: Adjust this function
 // Convert output from ADC into a readable value
 int convertOutput(unsigned long data) {
     // long minval = -1;
@@ -98,8 +97,25 @@ unsigned long readData(int chipSelect) {
     return data;
 }
 
+// Start ADC conversions
+void startConversions(int chipSelect) {
+    digitalWrite(chipSelect, LOW);
+    SPI.transfer(0x08);  // Instruction to start conversions
+    digitalWrite(chipSelect, HIGH);
+}
+
+// Write to an ADC configuration register
+void writeRegister(int chipSelect, unsigned char reg, unsigned long settings) {
+    if (reg >= 0 && reg <= 3) {
+        digitalWrite(chipSelect, LOW);
+        SPI.transfer(0x40 + (reg << 2));  // Instruction to write one byte at register "reg"
+        SPI.transfer(settings);  // Settings for register "reg"
+        digitalWrite(chipSelect, HIGH);
+    }
+}
+
 // Read ADC configuration registers
-unsigned long readConfig(int chipSelect) {
+unsigned long readRegisters(int chipSelect) {
     unsigned long output;
     digitalWrite(chipSelect, LOW);
     SPI.transfer(0x23);  // Instruction to read 4 bytes starting at register 0

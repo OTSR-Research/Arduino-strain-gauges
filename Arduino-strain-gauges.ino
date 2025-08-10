@@ -1,3 +1,4 @@
+
 #include <SPI.h>
 #include <SD.h>
 
@@ -30,7 +31,7 @@ void setup() {
 
     // Set ADC configuration registers
     for (int i = minADC; i <= maxADC; i++) {
-        writeRegister(i, 0, 0x0E);
+        writeRegister(i, 0, 0x6E);
         writeRegister(i, 1, 0xC4);
         writeRegister(i, 2, 0xC0);
         writeRegister(i, 3, 0x00);
@@ -82,7 +83,7 @@ int convertOutput(unsigned long data) {
     long maxval = 1;
     for (int i = 1; i <= 23; i++) maxval = maxval * 2;
     maxval = maxval - 1;
-    return (1000 * (twosComplement(data, 24) )) / (maxval);
+    return (1000 * (twosComplement(data) )) / (maxval);
 }
 
 // Read raw data from ADC
@@ -126,14 +127,14 @@ unsigned long readRegisters(int chipSelect) {
     return output;
 }
 
-// Convert an N-bit two's complement number to a long integer
-long twosComplement(unsigned long num, unsigned char N) {
+// Convert 24-bit two's complement number to long (32-bit) integer
+long twosComplement(unsigned long num) {
     long output;
-    if (num >> (N - 1)) {
-        output = -1 * (~((num - 1) << (33 - N)) >> (33 - N));
+    if (num >> 23) {
+        output = -1 * (~((num - 1) << 9) >> 9);
         if (output == 0) {
             output = -1;
-            for (int i = 1; i <= N - 1; i++) {
+            for (int i = 1; i <= 23; i++) {
                 output = output * 2;
             }
         }
@@ -142,3 +143,4 @@ long twosComplement(unsigned long num, unsigned char N) {
     }
     return output;
 }
+

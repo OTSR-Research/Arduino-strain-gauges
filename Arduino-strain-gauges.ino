@@ -12,7 +12,8 @@ const size_t dataLen = (1 + maxADC - minADC) + 1;  // Length = number of ADCs, +
 long* gaugeData = (long*) calloc(dataLen, sizeof(long));
 
 void setup() {
-    Serial.begin(9600);
+    // Serial.begin(9600);
+    // Serial.println();
 
     // Initialize pins
     pinMode(SDpin, OUTPUT);
@@ -44,66 +45,17 @@ void setup() {
 }
 
 void loop() {
-    // Take gauge readings
+    // Save gauge readings in array
     gaugeData[0] = millis();
     for (int i = minADC; i <= maxADC; i++) {
-        gaugeData[i - minADC + 1] = convertOutput(readData(i));
+        gaugeData[1 + i - minADC] = toLong(readData(i));
     }
     // Write data to SD card
-    // writeToSD(gaugeData, dataLen, "data.csv");
-    // Print data for testing
-    for (int i = 0; i <= dataLen - 1; i++) {
-        Serial.print(gaugeData[i]);
-        if (i < dataLen - 1) Serial.print(", ");
-    }
-    Serial.println();
-    delay(1000);
+    writeToSD(gaugeData, dataLen, "data.csv");
 }
 
-// Write integer data to SD card
-void writeToSD(long* data, size_t len, String filename) {
-    digitalWrite(SDpin, LOW);
-    File dataFile = SD.open(filename, FILE_WRITE);
-    if (dataFile != NULL) {
-        for (int i = 0; i <= len - 1; i++) {
-            dataFile.print(data[i]);
-            if (i < len - 1) dataFile.print(",");
-        }
-        dataFile.println();
-        dataFile.close();
-    }
-    digitalWrite(SDpin, HIGH);
-}
 
-// TODO: Adjust this function
-// Convert output from ADC into a readable value
-int convertOutput(unsigned long data) {
-    // long minval = -1;
-    // for (int i = 1; i <= 23; i++) minval = minval * 2;
-    long maxval = 1;
-    for (int i = 1; i <= 23; i++) maxval = maxval * 2;
-    maxval = maxval - 1;
-    return (1000 * (twosComplement(data) )) / (maxval);
-}
-
-// Read raw data from ADC
-unsigned long readData(int chipSelect) {
-    digitalWrite(chipSelect, LOW);
-    SPI.transfer(0x10);  // Instruction to read data
-    unsigned long data = 0;
-    for (int i = 1; i <= 3; i++) {  // Get 3 data bytes
-        data = (data << 8) + SPI.transfer(0);
-    }
-    digitalWrite(chipSelect, HIGH);
-    return data;
-}
-
-// Start ADC conversions
-void startConversions(int chipSelect) {
-    digitalWrite(chipSelect, LOW);
-    SPI.transfer(0x08);  // Instruction to start conversions
-    digitalWrite(chipSelect, HIGH);
-}
+//------------------------- Functions for handling SPI devices -------------------------
 
 // Write to an ADC configuration register
 void writeRegister(int chipSelect, unsigned char reg, unsigned long settings) {
@@ -127,20 +79,63 @@ unsigned long readRegisters(int chipSelect) {
     return output;
 }
 
-// Convert 24-bit two's complement number to long (32-bit) integer
-long twosComplement(unsigned long num) {
-    long output;
-    if (num >> 23) {
-        output = -1 * (~((num - 1) << 9) >> 9);
-        if (output == 0) {
-            output = -1;
-            for (int i = 1; i <= 23; i++) {
-                output = output * 2;
-            }
-        }
+// Start ADC conversions
+void startConversions(int chipSelect) {
+    digitalWrite(chipSelect, LOW);
+    SPI.transfer(0x08);  // Instruction to start conversions
+    digitalWrite(chipSelect, HIGH);
+}
+
+// Read raw data from ADC
+unsigned long readData(int chipSelect) {
+    digitalWrite(chipSelect, LOW);
+    SPI.transfer(0x10);  // Instruction to read data
+    unsigned long data = 0;
+    for (int i = 1; i <= 3; i++) {  // Get 3 data bytes
+        data = (data << 8) + SPI.transfer(0);
+    }
+    digitalWrite(chipSelect, HIGH);
+    return data;
+}
+
+// Convert N-bit two's complement number to long (32-bit) integer
+long toLong(unsigned long num) {
+    unsigned char N = 24;
+    unsigned long output;
+    if (N >= 32) {  // N must be less than 32
+        output = -999999999;
     } else {
-        output = num;
+        if (num >> (N - 1)) {  // Check if 1st bit (i.e. sign bit) is 1
+            if (!(num << (33 - N))) {  // If all other bits are 0, number is -2^(N-1)
+                output = -1;
+                for (int i = 1; i <= N - 1; i++) {
+                    output = output * 2;
+                }
+            } else {  // Otherwise, do the procedure
+                output = num - 1;  // Subtract 1
+                output = ~output;  // Invert bits
+                output = (output << (33 - N)) >> (33 - N);  // Set extra leading bits to 0
+                output = output * -1;  // Make negative
+            }
+        } else {  // If sign bit is 0, number stays the same
+            output = num;
+        }
     }
     return output;
+}
+
+// Write (long) integer data array to SD card
+void writeToSD(long* data, size_t len, String filename) {
+    digitalWrite(SDpin, LOW);
+    File dataFile = SD.open(filename, FILE_WRITE);
+    if (dataFile != NULL) {
+        for (int i = 0; i <= len - 1; i++) {
+            dataFile.print(data[i]);
+            if (i < len - 1) dataFile.print(",");
+        }
+        dataFile.println();
+        dataFile.close();
+    }
+    digitalWrite(SDpin, HIGH);
 }
 

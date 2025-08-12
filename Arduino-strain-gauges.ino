@@ -28,7 +28,7 @@ void setup() {
     digitalWrite(SDpin, LOW);
     SD.begin();
     digitalWrite(SDpin, HIGH);
-    SPI.beginTransaction(SPISettings(1000000, MSBFIRST, SPI_MODE1));
+    SPI.beginTransaction(SPISettings(8000000, MSBFIRST, SPI_MODE1));
 
     // Set ADC configuration registers
     for (int i = minADC; i <= maxADC; i++) {
@@ -51,7 +51,7 @@ void loop() {
         gaugeData[1 + i - minADC] = toLong(readData(i));
     }
     // Write data to SD card
-    writeToSD(gaugeData, dataLen, "data.csv");
+    writeToSD(SDpin, gaugeData, dataLen, "data.csv");
 }
 
 
@@ -125,8 +125,8 @@ long toLong(unsigned long num) {
 }
 
 // Write (long) integer data array to SD card
-void writeToSD(long* data, size_t len, String filename) {
-    digitalWrite(SDpin, LOW);
+void writeToSD(int chipSelect, long* data, size_t len, String filename) {
+    digitalWrite(chipSelect, LOW);
     File dataFile = SD.open(filename, FILE_WRITE);
     if (dataFile != NULL) {
         for (int i = 0; i <= len - 1; i++) {
@@ -136,6 +136,6 @@ void writeToSD(long* data, size_t len, String filename) {
         dataFile.println();
         dataFile.close();
     }
-    digitalWrite(SDpin, HIGH);
+    digitalWrite(chipSelect, HIGH);
 }
 

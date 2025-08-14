@@ -52,10 +52,12 @@ void loop() {
     }
     // Write data to SD card
     writeToSD(SDpin, gaugeData, dataLen, "data.csv");
+    // Print data to serial port (for debugging)
+    // printToPort(gaugeData, dataLen);
 }
 
 
-//------------------------- Functions for handling SPI devices -------------------------
+//------------------------- Functions for handling SPI devices and debugging -------------------------
 
 // Write to an ADC configuration register
 void writeRegister(int chipSelect, unsigned char reg, unsigned long settings) {
@@ -137,5 +139,14 @@ void writeToSD(int chipSelect, long* data, size_t len, String filename) {
         dataFile.close();
     }
     digitalWrite(chipSelect, HIGH);
+}
+
+// Print (long) integer data array to serial port (for debugging)
+void printToPort(long* data, size_t len) {
+    for (int i = 0; i <= len - 1; i++) {
+        Serial.print(data[i]);
+        if (i < len - 1) Serial.print(",");
+    }
+    Serial.println();
 }
 

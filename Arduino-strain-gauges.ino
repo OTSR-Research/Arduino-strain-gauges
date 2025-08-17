@@ -18,7 +18,7 @@ void setup() {
     // Initialize pins
     pinMode(SDpin, OUTPUT);
     digitalWrite(SDpin, HIGH);
-    for (int i = minADC; i <= maxADC; i++) {
+    for (int i = A0; i <= A1; i++) {
         pinMode(i, OUTPUT);
         digitalWrite(i, HIGH);
     }

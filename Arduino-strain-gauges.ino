@@ -42,6 +42,15 @@ void setup() {
     for (int i = minADC; i <= maxADC; i++) {
         startConversions(i);
     }
+
+    // Mark start of new recording session in data file
+    digitalWrite(SDpin, LOW);
+    File dataFile = SD.open("data.csv", FILE_WRITE);
+    if (dataFile != NULL) {
+        dataFile.println("----------------------------------------------------------------------------------------------------");
+        dataFile.close();
+    }
+    digitalWrite(SDpin, HIGH);
 }
 
 void loop() {
@@ -129,14 +138,14 @@ long toLong(unsigned long num) {
 // Write (long) integer data array to SD card
 void writeToSD(int chipSelect, long* data, size_t len, String filename) {
     digitalWrite(chipSelect, LOW);
-    File dataFile = SD.open(filename, FILE_WRITE);
-    if (dataFile != NULL) {
+    File file = SD.open(filename, FILE_WRITE);
+    if (file != NULL) {
         for (int i = 0; i <= len - 1; i++) {
-            dataFile.print(data[i]);
-            if (i < len - 1) dataFile.print(",");
+            file.print(data[i]);
+            if (i < len - 1) file.print(",");
         }
-        dataFile.println();
-        dataFile.close();
+        file.println();
+        file.close();
     }
     digitalWrite(chipSelect, HIGH);
 }

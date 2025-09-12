@@ -1,4 +1,3 @@
-
 Register 0 (1st gauge)       Register 0 (2nd gauge)
 ┌───────────────────────┐    ┌───────────────────────┐
 │ MUX   GAIN PGA_BYPASS │    │ MUX   GAIN PGA_BYPASS │
@@ -30,4 +29,3 @@ Register 3
 │ ───────┼───────────        │
 │ 0      │0                  │
 └────────────────────────────┘
-
